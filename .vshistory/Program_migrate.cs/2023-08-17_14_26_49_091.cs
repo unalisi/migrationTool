@@ -1,0 +1,55 @@
+﻿using System;
+using System.Data;
+using System.Data.SqlClient;
+using Npgsql;
+
+class Program
+{
+    static void Main()
+    {
+        string sqlServerConnectionString = "Data Source=178.157.15.66;Integrated Security=False;Initial Catalog=evodata18;User ID=userevodata18;Password=0u7zV3S(cg)b47LjhnE5YcOdA!28Lj7EW9;";
+        //string postgreConnectionString = "Server=161.35.202.107; Port=5432; User Id=postgres; Password=enasoft1453; Database=postgres; Pooling=false;";
+
+        //string sourceConnectionString = "Data Source=DESKTOP-M4RCH0O;Initial Catalog=YourMSSQLDatabase;Integrated Security=True";
+        string targetConnectionString = "Host=localhost;Port=5432;Database=MSSQLtoPOSTGRESQL;Username=postgres;Password=admin";
+
+        using (var sourceConnection = new SqlConnection(sourceConnectionString))
+        using (var targetConnection = new NpgsqlConnection(targetConnectionString))
+        {
+            sourceConnection.Open();
+            targetConnection.Open();
+
+            using (var sourceCommand = new SqlCommand("SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE'", sourceConnection))
+            using (var reader = sourceCommand.ExecuteReader())
+            {
+                while (reader.Read())
+                {
+                    string tableName = reader["TABLE_NAME"].ToString();
+                    TransferData(sourceConnection, targetConnection, tableName);
+                }
+            }
+        }
+
+        Console.WriteLine("Veri aktarım işlemi tamamlandı.");
+    }
+
+    static void TransferData(SqlConnection sourceConnection, NpgsqlConnection targetConnection, string tableName)
+    {
+        using (var sourceDataAdapter = new SqlDataAdapter($"SELECT * FROM {tableName}", sourceConnection))
+        {
+            var dataSet = new DataSet();
+            sourceDataAdapter.Fill(dataSet, tableName);
+
+            using (var targetTransaction = targetConnection.BeginTransaction())
+            {
+                using (var targetBulkCopy = new NpgsqlBulkCopy(targetConnection, targetTransaction))
+                {
+                    targetBulkCopy.DestinationTableName = tableName;
+                    targetBulkCopy.WriteToServer(dataSet.Tables[0]);
+                }
+
+                targetTransaction.Commit();
+            }
+        }
+    }
+}

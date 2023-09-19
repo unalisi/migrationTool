@@ -1,0 +1,24 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net6.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="main.cs" />
+    <Compile Remove="MIGRATE_TXTtoPOSTGRESQL.cs" />
+    <Compile Remove="migration_main.cs" />
+    <Compile Remove="migration_main_v2 - Copy.cs" />
+    <Compile Remove="Program_migrate.cs" />
+    <Compile Remove="tablodakiVeriSayısı.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Npgsql" Version="7.0.4" />
+    <PackageReference Include="System.Data.SqlClient" Version="4.8.5" />
+  </ItemGroup>
+
+</Project>

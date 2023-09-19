@@ -1,0 +1,111 @@
+﻿using System;
+using System.Data.SqlClient;                    //  AND TABLE_NAME NOT LIKE 'LOG_%'
+using System.Text;
+using Npgsql;
+
+namespace DatabaseConnectionExample
+{
+    class Program
+    {
+        public static StreamWriter sw;
+        static void Main(string[] args)
+        {
+            string connectionString = "your_sql_server_connection_string";
+            string targetConnectionString = "your_postgre_connection_string";
+            string outputFilePath = "your_file_path";
+            sw = new StreamWriter(outputFilePath, false, Encoding.UTF8);
+
+            using (NpgsqlConnection targetConnection = new NpgsqlConnection(targetConnectionString))
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            {
+                //try
+                //{
+                connection.Open();
+                targetConnection.Open();
+                Console.WriteLine("Veritabanına bağlantı başarılı.");
+
+                List<string> tableNames = new List<string>();
+                Dictionary<string, List<string>> columnNames = new Dictionary<string, List<string>>();
+
+                string query = "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE' AND TABLE_NAME NOT LIKE 'LOG_%'";
+
+                using (SqlCommand command = new SqlCommand(query, connection))
+                using (SqlDataReader reader = command.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        string tableName = reader["TABLE_NAME"].ToString();
+                        tableNames.Add(tableName);
+                    }
+                }
+
+
+
+                foreach (string tableName in tableNames)
+                {
+                    List<string> columns = new List<string>();
+                    query = $"SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '{tableName}' AND TABLE_NAME NOT LIKE 'LOG_%'";
+                    using (SqlCommand command = new SqlCommand(query, connection))
+                    using (SqlDataReader reader = command.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            string columnName = reader["COLUMN_NAME"].ToString();
+                            columns.Add(columnName);
+                        }
+                    }
+
+                    columnNames.Add(tableName, columns);
+                }
+
+                foreach (var kvp in columnNames)
+                {
+                    sw.WriteLine($"Tablo: {kvp.Key}");
+                    Console.WriteLine($"Tablo: {kvp.Key}");
+
+                    string selectColumns = string.Join(", ", kvp.Value); // Sütun isimlerini yan yana yazdırmak için
+                    string selectQuery = $"SELECT {selectColumns} FROM {kvp.Key}";
+                    string insertQuery = $"INSERT INTO {kvp.Key} ({kvp.Value}) VALUES (@value1)";
+
+                    using (NpgsqlCommand npgsqlCommand = new NpgsqlCommand(insertQuery, targetConnection))
+                    using (SqlCommand command = new SqlCommand(selectQuery, connection))
+                    using (SqlDataReader reader = command.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            string rowValues = "";
+                            for (int i = 0; i < reader.FieldCount; i++)
+                            {
+                                npgsqlCommand.Parameters.AddWithValue("@value1", $"{reader[i]}");
+                                npgsqlCommand.ExecuteNonQuery();
+
+                                rowValues += $"{reader[i]}\t";
+                                sw.WriteLine(rowValues);
+                                Console.WriteLine(rowValues);
+                            }
+
+                            //sw.WriteLine(rowValues);
+                            //Console.WriteLine(rowValues);
+
+
+                        }
+                    }
+
+                    sw.WriteLine();
+                    Console.WriteLine();
+                }
+                //}
+                //catch (Exception ex)
+                //{
+                //    Console.WriteLine("Bağlantı hatası: " + ex.Message);
+                //}
+            }
+
+        }
+    }
+}
+
+
+
+
+
